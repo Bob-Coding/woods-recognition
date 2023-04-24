@@ -1,0 +1,13 @@
+# Ignore .idea directory
+.big-data-woods/.idea/
+
+# Ignore vendor directory
+.big-data-woods/vendor/
+
+# Ignore dashboard/.env file
+.big-data-woods/vendor/dashboard/.env
+
+dashboard/.idea/*
+dashboard/.env/*
+dashboard/.vendor/*
+
