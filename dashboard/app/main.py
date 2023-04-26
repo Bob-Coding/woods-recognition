@@ -1,14 +1,35 @@
-# Add the parent directory of the current file to the Python path
 import os
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from config import settings
 import csv
-from PIL import Image, ImageOps
+from PIL import Image
+import numpy as np
+import tensorflow as tf
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
 
+# Add the parent directory of the current file to the Python path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from config import settings
 from database.connection import MongoDBConnection
 from pymongo.errors import ConnectionFailure
-import pandas as pd
+
+# Function to resize images and return them as NumPy arrays
+def resize_images(input_dir, output_dir, size):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    images = []
+    for filename in os.listdir(input_dir):
+        name, ext = os.path.splitext(filename)
+        if ext == '.jpg':
+            with Image.open(os.path.join(input_dir, filename)) as image:
+                resized_image = image.resize((size, size))
+                resized_image.save(os.path.join(output_dir, filename)) # save resized image
+                np_image = np.array(resized_image) / 255.0 # convert to NumPy array
+                images.append(np_image)
+    return np.array(images)
+
 
 try:
     connection = MongoDBConnection(settings.DATABASE_URL)
@@ -20,67 +41,61 @@ try:
     print(f"Database URL: {settings.DATABASE_URL}")
     print(f"Database name: {settings.DATABASE_NAME}")
 
-    # Read data from CSV file
-    dfhotel = pd.read_csv('../data/data.csv')
+    # Resize images
+    input_dir = '../data/images'
+    output_dir = '../data/resized_images'
+    size = 40
+    images = resize_images(input_dir, output_dir, size)
 
+
+    # Read data from CSV file
     with open('../data/data.csv', 'r') as file:
         reader = csv.DictReader(file)
         data = [row for row in reader]
 
     # Insert data into MongoDB
-    db.woods.insert_many(data)
+    db.my_collection.insert_many(data)
     print("Data successfully inserted into MongoDB!")
 
+    # Add target data
+    target_data = np.random.randint(0, 10, (len(images), 10))
 
-    # Resize images
-    # Stel de grootte in waarnaar de afbeeldingen moeten worden geresized
-    size = (60, 60)
+    # Split dataset into training and test sets
+    X_train, X_test, y_train, y_test = train_test_split(images, target_data, test_size=0.2, random_state=42)
 
-    # Loop door alle afbeeldingen in een map
-    for filename in os.listdir('../data/images'):
-        # Controleer of het bestand een afbeelding is
-        if filename.endswith('.jpg'):
-            # Open de afbeelding
-            with Image.open('../data/images/' + filename) as img:
+    # Train neural network
+    model = tf.keras.models.Sequential([
+        tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=(size, size, 3)),
+        tf.keras.layers.MaxPooling2D((2, 2)),
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(10, activation='softmax')
+    ])
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-                # bepaal de gewenste afmetingen
-                target_width = 40
-                target_height = 40
+    history = model.fit(X_train, y_train, epochs=10)
 
-                # bereken de middelpunten
-                width, height = img.size
-                left = (width - target_width) / 2
-                top = (height - target_height) / 2
-                right = (width + target_width) / 2
-                bottom = (height + target_height) / 2
+    # Evaluate model on test set
+    test_loss, test_acc = model.evaluate(X_test, y_test)
+    print("Test accuracy:", test_acc)
 
-                # bijsnijden en opslaan
-                img_path = '../data/images/resized/'
-                if not os.path.exists(img_path):
-                    os.mkdir(img_path)
+    print("Neural network training completed successfully.")
 
-                # controleer of de afbeelding kleiner is dan de gewenste afmetingen
-                if width < target_width or height < target_height:
-                    # bereken de padding om toe te voegen
-                    horizontal_padding = max(target_width - img.width, 0) // 2
-                    vertical_padding = max(target_height - img.height, 0) // 2
+    # Plot accuracy over time
+    plt.plot(history.history['accuracy'])
+    plt.title('Model accuracy')
+    plt.ylabel('Accuracy')
+    plt.xlabel('Epoch')
+    plt.legend(['Train'], loc='upper left')
+    plt.show()
 
-                    # voeg de padding toe en sla op
-                    img_padded = ImageOps.expand(img, border=(horizontal_padding, vertical_padding), fill="white")
-                    img_padded.save(img_path + filename)
-                else:
-                    # bijsnijden en opslaan
-                    img_cropped = img.crop((left, top, right, bottom))
-                    img_cropped.save(img_path + filename)
+    # Determine the class predictions for the test set
+    predictions = model.predict(X_test)
+    class_predictions = np.argmax(predictions, axis=1)
 
-
-                # # Pas de grootte van de afbeelding aan
-                # img_resized = img.resize(size)
-                # # Sla de aangepaste afbeelding op met een andere bestandsnaam
-                # if not os.path.exists(img_path):
-                #     os.mkdir(img_path)
-                # img_resized.save(img_path + filename)
-    print("Pictures resized to " + str(size))
+    # Print the class predictions for the first 10 test images
+    print("Class predictions for first 10 test images:")
+    for i in range(10):
+        print(f"Test image {i+1}: Class {class_predictions[i]}")
 
 except ConnectionFailure as e:
     print("Failed to connect to MongoDB.")
