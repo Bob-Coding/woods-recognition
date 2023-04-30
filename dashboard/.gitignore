@@ -1,5 +1,12 @@
 # Ignore .idea directory
 .big-data-woods/.idea/
+dashboard/.env
+config/__pycache__/*
+database/__pycache__/*
+app/__pycache__/*
+../.idea/*
+.idea/*
+neural_network/__pycache__/*
 
 # Ignore vendor directory
 .big-data-woods/vendor/
