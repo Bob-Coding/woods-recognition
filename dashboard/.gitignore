@@ -3,6 +3,8 @@
 dashboard/.env
 config/__pycache__/*
 database/__pycache__/*
+data/resized_images/*
+
 app/__pycache__/*
 ../.idea/*
 .idea/*
