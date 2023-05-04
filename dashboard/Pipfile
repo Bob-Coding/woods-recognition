@@ -13,6 +13,8 @@ pillow = "*"
 scikit-learn = "*"
 matplotlib = "*"
 sciviewer = "*"
+flask = "*"
+flask-cors = "*"
 
 [dev-packages]
 
