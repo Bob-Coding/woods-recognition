@@ -1,6 +1,6 @@
-# Ignore .idea directory
 .big-data-woods/.idea/
 dashboard/.env
+dashboard/data/
 config/__pycache__/*
 database/__pycache__/*
 data/resized_images/*
