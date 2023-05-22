@@ -1,120 +1,191 @@
 import os
 import sys
 
+from flask import Flask, request, jsonify
+from flask_swagger_ui import get_swaggerui_blueprint
+from flask_swagger import swagger
+
+from pymongo import MongoClient
+from dotenv import load_dotenv
+from tensorflow.keras.preprocessing import image
+import pickle
+import matplotlib.pyplot as plt
+train_model_on_startup = False
 # Add the parent directory of the current file to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from train_model.train_model import train
 
-import matplotlib.pyplot as plt
-from bson import ObjectId
-from flask import Flask, jsonify
-from flask_cors import CORS
-from config import settings
-from database.connection import MongoDBConnection
-from neural_network.neural_network import resize_images, insert_data, train_neural_network, read_data
-from pymongo.errors import ConnectionFailure
+mongo_uri = "mongodb://root:example@localhost:27017/test?authSource=admin"
+db_name = "test"
+collection_name = "dataset_cleaned"
 
-app = Flask(__name__, static_url_path='/static', static_folder='public')
-CORS(app)
+if train_model_on_startup == True:
+    train()
 
-@app.route('/train_neural_network')
-def neural_network():
-    connection = None
-    db = None
+app = Flask(__name__)
 
-    try:
-        connection = MongoDBConnection(settings.DATABASE_URL)
-        db = connection.get_database()
+client = MongoClient(mongo_uri)
+db = db_name # Specify the database name directly
+collection = collection_name # Specify the collection name directly
 
-        # use the "db" object to interact with your MongoDB database
+@app.route('/plots', methods=['GET'])
+def get_items():
+    """
+    Get all items
+    ---
+    tags:
+    - Items
+    responses:
+      200:
+        description: OK
+    """
+    items = list(collection.find({}))
+    return jsonify(items)
 
-        print("Successfully connected to MongoDB!")
-        print(f"Database URL: {settings.DATABASE_URL}")
-        print(f"Database name: {settings.DATABASE_NAME}")
+@app.route("/classify_image", methods=["POST"])
+def check_file():
+    """
+    Classify an uploaded image to a specific label
+    ---
+    tags:
+    - Items
+    parameters:
+      - name: filename
+        in: body
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: OK
+    """
+    data = request.get_json()
+    filename = data['path']
+    if os.path.exists(filename):
+        
+        # Laden van het getrainde model
+        with open('./data/getraind_model.pkl', 'rb') as f:
+            model = pickle.load(f)
 
-        # Resize images
-        input_dir = '../data/images'
-        output_dir = '../data/resized_images'
-        size = 40
-        images = resize_images(input_dir, output_dir, size)
+        # Laden van de opgeslagen encoders en encoded_labels
+        with open('./data/encoders.pkl', 'rb') as f:
+            loaded_encoders = pickle.load(f)
 
-        # Inserting data in the database
-        file_path = '../data/data.csv'
-        collection_name = 'woods'
-        insert_data(collection_name, file_path, db)
+        label_encoder = loaded_encoders['label_encoder']
 
-        # Read data from the database
-        data = read_data(file_path)
+        # Laad het plaatje
+        img_path = filename
+        print(img_path)
+        img = image.load_img(img_path, target_size=(256, 700))  # Pas de doelgrootte aan op basis van je model
 
-        # Inserting data in the database
-        insert_data(collection_name, file_path, db)
+        # Converteer het plaatje naar een Numpy-array
+        img_array = image.img_to_array(img)
 
-        # Train the neural network
-        train_neural_network(images, size)
+        # Breid de dimensie uit, omdat het model meestal batches van afbeeldingen verwacht
+        img_array = np.expand_dims(img_array, axis=0)
 
-        # Generate the plot and save it to a file
-        plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
-        plt.title('My Plot')
-        plt.xlabel('X axis')
-        plt.ylabel('Y axis')
-        plot_dir = os.path.join(app.static_folder, 'plots')
-        os.makedirs(plot_dir, exist_ok=True)  # Create the directory if it doesn't exist
-        plot_path = os.path.join(plot_dir, 'my_plot.png')
-        plt.savefig(plot_path)
+        # Doe de voorspelling met behulp van het geladen model
+        predictions = model.predict(img_array)
 
-        return "Neural network training completed successfully!"
+        # Decodeer de voorspellingen naar leesbare labels
+        decoded_predictions = label_encoder.inverse_transform(np.argmax(predictions, axis=1))
 
-    except ConnectionFailure as e:
-        print("Failed to connect to MongoDB.")
-        print(e)
-        return "Failed to connect to MongoDB."
+        # Decodeer ook de mogelijke gokken van het model
+        decoded_possible_labels = label_encoder.inverse_transform(np.argsort(-predictions, axis=1)[:, :3].ravel())
 
-    # Finally close connection
-    finally:
-        if connection:
-            connection.close()
+        # Plot het voorspelde label
+        fig, ax = plt.subplots()
+        ax.bar(decoded_predictions, np.max(predictions, axis=1))
+        ax.set_xlabel('Label')
+        ax.set_ylabel('Voorspelde waarde')
+        ax.set_title('Voorspeld label')
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.savefig('app/public/plots/voorspeld_label.png')
+        plt.close()
 
-# Data endpoint for fetching all data from database
-@app.route('/data')
-def get_data():
-    connection = None
-    db = None
+        # Plot de mogelijke gokken van het model
+        fig, ax = plt.subplots()
+        ax.bar(decoded_possible_labels.ravel(), predictions.ravel()[np.argsort(-predictions, axis=1)[:, :3]].ravel())
+        ax.set_xlabel('Label')
+        ax.set_ylabel('Voorspelde waarde')
+        ax.set_title('Mogelijke gokken van het model')
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.savefig('app/public/plots/mogelijke_gokken.png')
+        plt.close()
+        return "done"
+            
+    else:
+        return jsonify({'message': 'File does not exist'}), 404
 
-    try:
-        connection = MongoDBConnection(settings.DATABASE_URL)
-        db = connection.get_database()
+@app.route('/items', methods=['POST'])
+def add_item():
+    """
+    Add a new item
+    ---
+    tags:
+    - Items
+    parameters:
+      - name: item
+        in: body
+        required: true
+        schema:
+          type: object
+    responses:
+      200:
+        description: OK
+    """
+    data = request.get_json()
+    collection.insert_one(data)
+    return jsonify({'message': 'Item added successfully'})
 
-        # use the "db" object to interact with your MongoDB database
 
-        print("Successfully connected to MongoDB!")
-        print(f"Database URL: {settings.DATABASE_URL}")
-        print(f"Database name: {settings.DATABASE_NAME}")
-
-        # Get all the documents from the "woods" collection
-        collection_name = 'woods'
-        documents = db[collection_name].find()
-
-        # Convert the ObjectId to string for all the documents
-        data = []
-        for doc in documents:
-            doc['_id'] = str(doc['_id'])
-            data.append(doc)
-
-        return jsonify(data)
-
-    except ConnectionFailure as e:
-        print("Failed to connect to MongoDB.")
-        print(e)
-        return "Failed to connect to MongoDB."
-
-    # Finally close connection
-    finally:
-        if connection:
-            connection.close()
-
-@app.route('/my_plot')
-def my_plot():
+@app.route('/voorspeld_label')
+def my_plot_label():
     # Return the image file
-    return app.send_static_file('plots/my_plot.png')
+    return app.send_static_file('plots/voorspeld_label.png')
+
+@app.route('/mogelijke_gokken')
+def my_plot_gokken():
+    # Return the image file
+    return app.send_static_file('plots/mogelijke_gokken.png')
+
+
+@app.route('/preprocess_data', methods=['POST'])
+def preprocess_data():
+    """
+    Preprocesses the data for training the model.
+    ---
+    parameters:
+      - name: subset_size
+        in: query
+        type: integer
+        description: Number of images to include in the subset
+        required: true
+    responses:
+      200:
+        description: Preprocessing completed successfully
+    """
+# Generate Swagger API definition
+@app.route('/swagger.json', methods=['GET'])
+def swagger_json():
+    swag = swagger(app)
+    swag['info']['version'] = "1.0"
+    swag['info']['title'] = "  API"
+    return jsonify(swag)
+
+# Add the Swagger UI route
+SWAGGER_URL = '/docs'
+API_URL = '/swagger.json'
+
+swagger_ui_blueprint = get_swaggerui_blueprint(
+    SWAGGER_URL,
+    API_URL,config={
+    'app_name': "Your API Title"
+    }
+)
+app.register_blueprint(swagger_ui_blueprint, url_prefix=SWAGGER_URL)
 
 if __name__ == '__main__':
     app.run(debug=True)

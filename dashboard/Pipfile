@@ -15,8 +15,11 @@ matplotlib = "*"
 sciviewer = "*"
 flask = "*"
 flask-cors = "*"
+flask-swagger = "*"
+flask-swagger-ui = "*"
+tensorflow = "*"
 
 [dev-packages]
 
 [requires]
-python_version = "3.9"
+python_version = "3.9.7"
