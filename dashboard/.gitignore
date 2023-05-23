@@ -8,7 +8,6 @@ data/
 app/__pycache__/*
 ../.idea/*
 .idea/*
-neural_network/__pycache__/*
 
 # Ignore vendor directory
 .big-data-woods/vendor/
