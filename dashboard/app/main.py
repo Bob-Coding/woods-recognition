@@ -1,33 +1,23 @@
 import os
 import sys
-
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from config import settings
+from database.connection import MongoDBConnection
+from train_model.train_model import train
+import pickle
+import matplotlib.pyplot as plt
 from flask import Flask, request, jsonify
 from flask_swagger_ui import get_swaggerui_blueprint
 from flask_swagger import swagger
-
-from pymongo import MongoClient
-from dotenv import load_dotenv
 from tensorflow.keras.preprocessing import image
-import pickle
-import matplotlib.pyplot as plt
-train_model_on_startup = False
-# Add the parent directory of the current file to the Python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from train_model.train_model import train
 
-mongo_uri = "mongodb://root:example@localhost:27017/test?authSource=admin"
-db_name = "test"
-collection_name = "dataset_cleaned"
-
-if train_model_on_startup == True:
+if settings.TRAIN_MODEL == True:
     train()
 
 app = Flask(__name__)
-
-client = MongoClient(mongo_uri)
-db = db_name # Specify the database name directly
-collection = collection_name # Specify the collection name directly
-
+client = MongoDBConnection(settings.DATABASE_URL)
+db = client.get_database()
+collection = client.get_collection(settings.COLLECTION_NAME)
 @app.route('/plots', methods=['GET'])
 def get_items():
     """

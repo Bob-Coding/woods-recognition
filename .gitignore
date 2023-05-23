@@ -1,22 +1,9 @@
-.big-data-woods/.idea/
-dashboard/.env
+**/**/__pycache__/
+
+.idea/
+
 dashboard/data/
-config/__pycache__/*
-database/__pycache__/*
-data/resized_images/*
+dashboard/.idea/
+dashboard/.env
 
-app/__pycache__/*
-../.idea/*
-.idea/*
-neural_network/__pycache__/*
-
-# Ignore vendor directory
-.big-data-woods/vendor/
-
-# Ignore dashboard/.env file
-.big-data-woods/vendor/dashboard/.env
-
-dashboard/.idea/*
-dashboard/.env/*
-dashboard/.vendor/*
 
