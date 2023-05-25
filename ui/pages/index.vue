@@ -48,9 +48,13 @@
     <v-container>
       <v-card>
         <v-card-title>Plot</v-card-title>
-        <v-card-text>
-          <img :src="plotUrl" v-if="plotUrl" />
-        </v-card-text>
+        <div v-for="image in plotUrls" class="images-container">
+          <img
+            v-for="plotUrl in image"
+            class="plots-container"
+            :src="plotUrl"
+          />
+        </div>
       </v-card>
     </v-container>
   </div>
@@ -87,10 +91,9 @@ export default {
   name: "Dashboard",
   data() {
     return {
-      data: [],
       file: null,
       selectedFileName: null,
-      plotUrl: null,
+      plotUrls: null,
     };
   },
   computed: {
@@ -99,38 +102,46 @@ export default {
     },
   },
   methods: {
-    async fetchData() {
-      const response = await this.$axios.get("/data");
-      this.data = response.data;
-    },
     selectFile() {
       this.$refs.fileInput.click();
     },
     onFileSelected(event) {
-      console.log("hi");
       this.file = event.target.files[0];
-      console.log("this file", this.file);
-
       this.selectedFileName = this.file.name;
     },
     removeSelected() {
       this.file = null;
       this.selectedFileName = null;
-      // Reset de waarde van het bestandsinvoerelement
       this.$refs.fileInput.value = "";
     },
-    async classifyImage() {
+    async classifyImage(event) {
+      event.preventDefault();
       const formData = new FormData();
-      formData.append("file", this.file);
-      await this.$axios.post(this.apiUrl + "/classify_image", formData, {
+      const imageFiles = this.$refs.fileInput.files;
+      for (let i = 0; i < imageFiles.length; i++) {
+        const file = imageFiles[i];
+        formData.append("imageFiles", file);
+      }
+
+      const config = {
         headers: {
           "Content-Type": "multipart/form-data",
         },
-      });
+      };
+
+      try {
+        const response = await this.$axios.post(
+          "/classify_image",
+          formData,
+          config
+        );
+        console.log("R", response.data);
+        this.plotUrls = response.data;
+      } catch (error) {
+        console.log("error", error);
+      }
     },
   },
-  mounted() {
-    // this.fetchData();
-  },
+  mounted() {},
 };
 </script>

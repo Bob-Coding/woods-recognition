@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 load_dotenv()
-
+API_URL = os.getenv("API_URL") or "http://localhost:5000"
 USERNAME= os.getenv("USERNAME") or "root"
 PASSWORD= os.getenv("PASSWORD") or "example"
 DATABASE_NAME = os.getenv("DATABASE_NAME") or "big_data"

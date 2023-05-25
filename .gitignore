@@ -1,9 +1,13 @@
-**/**/__pycache__/
-
+# IDE
 .idea/
 
-dashboard/data/
-dashboard/.idea/
-dashboard/.env
+# service
+service/**/__pycache__/
+service/.idea/
+service/.env
+service/data/
+service/Pipfile.lock
+
+
 
 

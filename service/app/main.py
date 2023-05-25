@@ -6,18 +6,24 @@ from database.connection import MongoDBConnection
 from train_model.train_model import train
 import pickle
 import matplotlib.pyplot as plt
-from flask import Flask, request, jsonify
+import numpy as np
+from flask import Flask, request, jsonify, url_for
+from flask_cors import CORS, cross_origin
 from flask_swagger_ui import get_swaggerui_blueprint
 from flask_swagger import swagger
 from tensorflow.keras.preprocessing import image
+from werkzeug.utils import secure_filename
 
 if settings.TRAIN_MODEL == True:
     train()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
+CORS(app, resources={r"/*": {"origins": "*"}})
+
 client = MongoDBConnection(settings.DATABASE_URL)
 db = client.get_database()
 collection = client.get_collection(settings.COLLECTION_NAME)
+
 @app.route('/plots', methods=['GET'])
 def get_items():
     """
@@ -33,7 +39,8 @@ def get_items():
     return jsonify(items)
 
 @app.route("/classify_image", methods=["POST"])
-def check_file():
+@cross_origin(origin='*', headers=['Content-Type'])
+def classify():
     """
     Classify an uploaded image to a specific label
     ---
@@ -49,41 +56,37 @@ def check_file():
       200:
         description: OK
     """
-    data = request.get_json()
-    filename = data['path']
-    if os.path.exists(filename):
-        
-        # Laden van het getrainde model
-        with open('./data/getraind_model.pkl', 'rb') as f:
+    with open('./data/getraind_model.pkl', 'rb') as f:
             model = pickle.load(f)
-
-        # Laden van de opgeslagen encoders en encoded_labels
-        with open('./data/encoders.pkl', 'rb') as f:
+    with open('./data/encoders.pkl', 'rb') as f:
             loaded_encoders = pickle.load(f)
+    label_encoder = loaded_encoders['label_encoder']
 
-        label_encoder = loaded_encoders['label_encoder']
+    image_files = request.files.getlist('imageFiles')
+    images_folder = os.path.join(app.static_folder, "received_images")
+    # Create folder for saving images
+    os.makedirs(images_folder, exist_ok=True)
+    plot_urls = []
+    response = []
 
-        # Laad het plaatje
-        img_path = filename
-        print(img_path)
-        img = image.load_img(img_path, target_size=(256, 700))  # Pas de doelgrootte aan op basis van je model
-
-        # Converteer het plaatje naar een Numpy-array
+    for image_file in image_files:
+        filename = secure_filename(image_file.filename)
+        static_filepath = os.path.join(images_folder, filename)
+        image_file.save(static_filepath)
+        
+        img = image.load_img(static_filepath, target_size=(256, 700))  # Pas de doelgrootte aan op basis van je model
         img_array = image.img_to_array(img)
-
-        # Breid de dimensie uit, omdat het model meestal batches van afbeeldingen verwacht
         img_array = np.expand_dims(img_array, axis=0)
-
-        # Doe de voorspelling met behulp van het geladen model
+        
         predictions = model.predict(img_array)
 
-        # Decodeer de voorspellingen naar leesbare labels
         decoded_predictions = label_encoder.inverse_transform(np.argmax(predictions, axis=1))
-
-        # Decodeer ook de mogelijke gokken van het model
         decoded_possible_labels = label_encoder.inverse_transform(np.argsort(-predictions, axis=1)[:, :3].ravel())
 
-        # Plot het voorspelde label
+        plots_folder = os.path.join(app.static_folder, "plots")
+        os.makedirs(os.path.join(plots_folder), exist_ok=True)
+        
+         # Plot possible label top 1 pick
         fig, ax = plt.subplots()
         ax.bar(decoded_predictions, np.max(predictions, axis=1))
         ax.set_xlabel('Label')
@@ -91,10 +94,12 @@ def check_file():
         ax.set_title('Voorspeld label')
         plt.xticks(rotation=45)
         plt.tight_layout()
-        plt.savefig('app/public/plots/voorspeld_label.png')
+        plot_filepath_1 = f'{os.path.join(app.static_folder, "plots", os.path.splitext(filename)[0])}-label.png'
+        print(plot_filepath_1)
+        plt.savefig(plot_filepath_1)
         plt.close()
 
-        # Plot de mogelijke gokken van het model
+        # Plot possible labels top 3 picks
         fig, ax = plt.subplots()
         ax.bar(decoded_possible_labels.ravel(), predictions.ravel()[np.argsort(-predictions, axis=1)[:, :3]].ravel())
         ax.set_xlabel('Label')
@@ -102,13 +107,16 @@ def check_file():
         ax.set_title('Mogelijke gokken van het model')
         plt.xticks(rotation=45)
         plt.tight_layout()
-        plt.savefig('app/public/plots/mogelijke_gokken.png')
+        plot_filepath_2 = f'{os.path.join(app.static_folder,"plots", os.path.splitext(filename)[0])}-labels.png'
+        print(plot_filepath_2)
+        plt.savefig(plot_filepath_2)
         plt.close()
-        return "done"
-            
-    else:
-        return jsonify({'message': 'File does not exist'}), 404
-
+        
+        plot_urls.append(f'{settings.API_URL}/static/plots/{os.path.splitext(filename)[0]}-labels.png')
+        response.append({filename: plot_urls})
+    print(response)    
+    return jsonify(response)
+  
 @app.route('/items', methods=['POST'])
 def add_item():
     """
