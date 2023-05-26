@@ -46,14 +46,17 @@
       </v-card>
     </v-container>
     <v-container>
-      <v-card>
-        <v-card-title>Plot</v-card-title>
-        <div v-for="image in plotUrls" class="images-container">
-          <img
-            v-for="plotUrl in image"
-            class="plots-container"
-            :src="plotUrl"
-          />
+      <v-card v-for="image in plotUrls">
+        <div class="image-container" v-for="(_value, key) in image">
+          <v-card-title class="plot-title">{{ key }}</v-card-title>
+          <div class="plot-container">
+            <img
+              v-for="value in image[key]"
+              :src="value"
+              :key="imageUrl"
+              class="plot-image"
+            />
+          </div>
         </div>
       </v-card>
     </v-container>
@@ -83,6 +86,16 @@
 }
 .remove-icon:hover {
   cursor: pointer;
+}
+.plot-image {
+  width: 45%;
+  object-fit: contain;
+}
+.plot-container {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  gap: 20px;
 }
 </style>
 
@@ -135,8 +148,8 @@ export default {
           formData,
           config
         );
-        console.log("R", response.data);
         this.plotUrls = response.data;
+        this.removeSelected();
       } catch (error) {
         console.log("error", error);
       }

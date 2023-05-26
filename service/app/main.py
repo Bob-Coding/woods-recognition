@@ -98,6 +98,8 @@ def classify():
         print(plot_filepath_1)
         plt.savefig(plot_filepath_1)
         plt.close()
+        print(settings.API_URL)
+        plot_urls.append(f'{settings.API_URL}/static/plots/{os.path.splitext(filename)[0]}-label.png')
 
         # Plot possible labels top 3 picks
         fig, ax = plt.subplots()
