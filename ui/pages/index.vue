@@ -8,22 +8,28 @@
           ref="fileInput"
           style="display: none"
           @change="onFileSelected"
+          multiple
         />
         <v-btn
           color="primary"
-          v-if="!selectedFileName"
+          v-if="!files"
           @click="selectFile"
           class="btn-select-image"
         >
           Select an image
         </v-btn>
-        <div class="selectedFile">
-          <div class="filename">{{ selectedFileName }}</div>
-          <div v-if="selectedFileName">
+        <div class="selectedFile" v-if="files">
+          <div
+            class="filename"
+            v-for="(file, fileIndex) in files"
+            :key="generateId()"
+          >
+            {{ file.name }}
             <svg
+              :name="file.name"
               xmlns="http://www.w3.org/2000/svg"
               class="remove-icon"
-              @click="removeSelected"
+              @click="removeSelected(fileIndex)"
               width="16"
               height="16"
               viewBox="0 0 16 16"
@@ -37,7 +43,7 @@
         </div>
         <v-btn
           color="primary"
-          v-if="selectedFileName"
+          v-if="files"
           @click="classifyImage"
           class="btn-select-image"
         >
@@ -46,15 +52,19 @@
       </v-card>
     </v-container>
     <v-container>
-      <v-card v-for="image in plotUrls">
-        <div class="image-container" v-for="(_value, key) in image">
+      <v-card v-for="image in plotUrls" :key="generateId()">
+        <div
+          class="image-container"
+          v-for="(_value, key) in image"
+          :key="generateId()"
+        >
           <v-card-title class="plot-title">{{ key }}</v-card-title>
           <div class="plot-container">
             <img
               v-for="value in image[key]"
               :src="value"
-              :key="imageUrl"
               class="plot-image"
+              :key="generateId()"
             />
           </div>
         </div>
@@ -65,13 +75,21 @@
 
 <style scoped>
 .selectedFile {
-  color: #9e9e9e;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  justify-content: flex-start;
+  color: #9e9e9e;
+  align-items: flex-start;
   gap: 10px;
   margin-left: 16px;
 }
+.filename {
+  display: flex;
+  gap: 10px;
+}
+
 .btn-select-image {
+  display: inline-flex;
   margin: 16px 0px 16px 16px;
   margin-left: 16px;
 }
@@ -82,7 +100,6 @@
 .remove-icon {
   color: red;
   width: 16px;
-  height: 16px;
 }
 .remove-icon:hover {
   cursor: pointer;
@@ -90,6 +107,7 @@
 .plot-image {
   width: 45%;
   object-fit: contain;
+  margin-bottom: 30px;
 }
 .plot-container {
   display: flex;
@@ -104,8 +122,8 @@ export default {
   name: "Dashboard",
   data() {
     return {
-      file: null,
-      selectedFileName: null,
+      files: null,
+      selectedFileNames: null,
       plotUrls: null,
     };
   },
@@ -115,24 +133,29 @@ export default {
     },
   },
   methods: {
+    generateId() {
+      return Math.random().toString(36).substr(2, 9);
+    },
     selectFile() {
       this.$refs.fileInput.click();
     },
     onFileSelected(event) {
-      this.file = event.target.files[0];
-      this.selectedFileName = this.file.name;
+      this.files = [];
+      for (const file of event.target.files) {
+        this.files.push(file);
+      }
     },
-    removeSelected() {
-      this.file = null;
-      this.selectedFileName = null;
-      this.$refs.fileInput.value = "";
+    removeSelected(fileIndex) {
+      this.files.splice(fileIndex, 1);
+      if (this.$refs.fileInput.files.length === 0) {
+        this.$refs.fileInput.value = "";
+      }
     },
     async classifyImage(event) {
       event.preventDefault();
       const formData = new FormData();
-      const imageFiles = this.$refs.fileInput.files;
-      for (let i = 0; i < imageFiles.length; i++) {
-        const file = imageFiles[i];
+      for (let i = 0; i < this.files.length; i++) {
+        const file = this.files[i];
         formData.append("imageFiles", file);
       }
 
@@ -149,7 +172,7 @@ export default {
           config
         );
         this.plotUrls = response.data;
-        this.removeSelected();
+        this.files = null;
       } catch (error) {
         console.log("error", error);
       }

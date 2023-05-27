@@ -66,10 +66,10 @@ def classify():
     images_folder = os.path.join(app.static_folder, "received_images")
     # Create folder for saving images
     os.makedirs(images_folder, exist_ok=True)
-    plot_urls = []
     response = []
 
     for image_file in image_files:
+        plot_urls = []
         filename = secure_filename(image_file.filename)
         static_filepath = os.path.join(images_folder, filename)
         image_file.save(static_filepath)
@@ -95,10 +95,8 @@ def classify():
         plt.xticks(rotation=45)
         plt.tight_layout()
         plot_filepath_1 = f'{os.path.join(app.static_folder, "plots", os.path.splitext(filename)[0])}-label.png'
-        print(plot_filepath_1)
         plt.savefig(plot_filepath_1)
         plt.close()
-        print(settings.API_URL)
         plot_urls.append(f'{settings.API_URL}/static/plots/{os.path.splitext(filename)[0]}-label.png')
 
         # Plot possible labels top 3 picks
@@ -110,13 +108,10 @@ def classify():
         plt.xticks(rotation=45)
         plt.tight_layout()
         plot_filepath_2 = f'{os.path.join(app.static_folder,"plots", os.path.splitext(filename)[0])}-labels.png'
-        print(plot_filepath_2)
         plt.savefig(plot_filepath_2)
         plt.close()
-        
         plot_urls.append(f'{settings.API_URL}/static/plots/{os.path.splitext(filename)[0]}-labels.png')
         response.append({filename: plot_urls})
-    print(response)    
     return jsonify(response)
   
 @app.route('/items', methods=['POST'])
