@@ -3,7 +3,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import settings
 from database.connection import MongoDBConnection
-from train_model.train_model import train
+from models.Seq_DenseNet_model import train
 import pickle
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,7 +14,7 @@ from flask_swagger import swagger
 from tensorflow.keras.preprocessing import image
 from werkzeug.utils import secure_filename
 
-if settings.TRAIN_MODEL == True:
+if not os.path.exists(settings.ENCODERS_MODEL_PATH + 'encoders.pkl') or not os.path.exists(settings.ENCODERS_MODEL_PATH + 'seq_trained_model.pkl') or settings.TRAIN_MODEL == True:
     train()
 
 app = Flask(__name__, static_folder='static')
@@ -56,16 +56,39 @@ def classify():
       200:
         description: OK
     """
-    with open('./data/getraind_model.pkl', 'rb') as f:
-            model = pickle.load(f)
-    with open('./data/encoders.pkl', 'rb') as f:
-            loaded_encoders = pickle.load(f)
+    with open(settings.ENCODERS_MODEL_PATH + 'seq_trained_model.pkl', 'rb') as f:
+        model = pickle.load(f)
+    with open(settings.ENCODERS_MODEL_PATH + 'encoders.pkl', 'rb') as f:
+        loaded_encoders = pickle.load(f)
     label_encoder = loaded_encoders['label_encoder']
 
     image_files = request.files.getlist('imageFiles')
+    
+    # clean old images and plots
     images_folder = os.path.join(app.static_folder, "received_images")
-    # Create folder for saving images
+    plots_folder = os.path.join(app.static_folder, "plots")
+    
+    if(os.path.exists(images_folder)):
+        for image_name in os.listdir(images_folder):
+            file_path = os.path.join(images_folder, image_name)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+            except Exception as e:
+                print('Failed to delete %s. Reason: %s' % (file_path, e))    
+    if(os.path.exists(plots_folder)):
+            for plot_name in os.listdir(plots_folder):
+                file_path = os.path.join(plots_folder, plot_name)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                except Exception as e:
+                    print('Failed to delete %s. Reason: %s' % (file_path, e))    
+      
+    # Create folder for saving images and plots
     os.makedirs(images_folder, exist_ok=True)
+    os.makedirs(plots_folder, exist_ok=True)
+    
     response = []
 
     for image_file in image_files:
@@ -82,11 +105,8 @@ def classify():
 
         decoded_predictions = label_encoder.inverse_transform(np.argmax(predictions, axis=1))
         decoded_possible_labels = label_encoder.inverse_transform(np.argsort(-predictions, axis=1)[:, :3].ravel())
-
-        plots_folder = os.path.join(app.static_folder, "plots")
-        os.makedirs(os.path.join(plots_folder), exist_ok=True)
         
-         # Plot possible label top 1 pick
+        # Plot possible label top 1 pick
         fig, ax = plt.subplots()
         ax.bar(decoded_predictions, np.max(predictions, axis=1))
         ax.set_xlabel('Label')

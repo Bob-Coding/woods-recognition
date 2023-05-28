@@ -1,19 +1,26 @@
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from config import settings
 import csv
 from PIL import Image
 import pickle
 import numpy as np
-import tensorflow as tf
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+from tensorflow.keras.optimizers import Adam
 
 # Train model
 def train():
     file_names = []
     labels = []
 
-    with open('data/dataset_cleaned.csv', 'r') as csvfile:
+    with open(settings.DATASET_PATH, 'r') as csvfile:
         reader = csv.reader(csvfile)
         for row in reader:
             if row[0] != "_id":
@@ -27,9 +34,8 @@ def train():
     label_encoder = LabelEncoder()
 
     for file_name, label in zip(file_names, labels):
-        image = Image.open("data/images/" + file_name)
+        image = Image.open(settings.IMAGES_PATH + file_name)
         image = np.array(image)
-
         images.append(image)
         encoded_labels.append(label)
 
@@ -47,7 +53,7 @@ def train():
 
     # Save LabelEncoder, OneHotEncoder, encoded_labels 
     encoders = {'label_encoder': label_encoder, 'onehot_encoder': onehot_encoder, 'encoded_labels': encoded_labels}
-    with open('data/encoders.pkl', 'wb') as f:
+    with open(settings.ENCODERS_MODEL_PATH + 'encoders.pkl', 'wb') as f:
         pickle.dump(encoders, f)
 
     # Split set in trainings set and test set 
@@ -74,20 +80,41 @@ def train():
         model.add(Conv2D(best_num_filters, (best_filter_size, best_filter_size), activation='relu'))
         model.add(MaxPooling2D((2, 2)))
 
-    model.add(Flatten())
-    model.add(Dense(128, activation='relu'))
-    model.add(Dropout(best_dropout_rate))
-    model.add(Dense(mogelijke_labels_count, activation='softmax'))
+        model.add(Flatten())
+        model.add(Dense(128, activation='relu'))
+        model.add(Dropout(best_dropout_rate))
+        model.add(Dense(mogelijke_labels_count, activation='softmax'))
 
-    # compile model
-    optimizer = tf.keras.optimizers.Adam(learning_rate=best_learning_rate)
-    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+        # compile model
+        optimizer = Adam(learning_rate=best_learning_rate)
+        model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
 
-    # Train model
-    model.fit(X_train, y_train, batch_size=32, epochs=10, validation_data=(X_val, y_val))
+        # Train model
+        model.fit(X_train, y_train, batch_size=32, epochs=1, validation_data=(X_val, y_val))
 
-    # Save trained model
-    with open('data/getraind_model.pkl', 'wb') as file:
-        pickle.dump(model, file)
+        # Generate predictions for the test data
+        y_pred = model.predict(X_test)
+        y_pred = np.argmax(y_pred, axis=1)
 
+        # Convert one-hot encoded y_test to multiclass format
+        y_test_multiclass = np.argmax(y_test, axis=1)
+
+        # Calculate the confusion matrix
+        cm = confusion_matrix(y_test_multiclass, y_pred)
+
+        # Bouw het pad naar de "static" map op
+        cm_folder = os.path.join("./app/static", "cm")
+        os.makedirs(os.path.join(cm_folder), exist_ok=True)
+        
+        # Plot the confusion matrix using seaborn
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False)
+        plt.xlabel('Predicted labels')
+        plt.ylabel('True labels')
+        plt.title('Confusion Matrix')
+        plt.savefig(cm_folder + '/seq_confusion_matrix.png')
+
+        # Save trained model
+        with open(settings.ENCODERS_MODEL_PATH + 'seq_trained_model.pkl', 'wb') as file:
+            pickle.dump(model, file)
 
