@@ -90,7 +90,7 @@ def train():
         model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
 
         # Train model
-        model.fit(X_train, y_train, batch_size=32, epochs=1, validation_data=(X_val, y_val))
+        model.fit(X_train, y_train, batch_size=32, epochs=10, validation_data=(X_val, y_val))
 
         # Generate predictions for the test data
         y_pred = model.predict(X_test)
@@ -102,7 +102,6 @@ def train():
         # Calculate the confusion matrix
         cm = confusion_matrix(y_test_multiclass, y_pred)
 
-        # Bouw het pad naar de "static" map op
         cm_folder = os.path.join("./app/static", "cm")
         os.makedirs(os.path.join(cm_folder), exist_ok=True)
         

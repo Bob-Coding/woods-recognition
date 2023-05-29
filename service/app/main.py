@@ -3,7 +3,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import settings
 from database.connection import MongoDBConnection
-from models.Seq_DenseNet_model import train
+from models.DenseNet_model import train
 import pickle
 import matplotlib.pyplot as plt
 import numpy as np
