@@ -7,15 +7,15 @@ from models.Seq_DenseNet_model import train
 import pickle
 import matplotlib.pyplot as plt
 import numpy as np
-from flask import Flask, request, jsonify, url_for
+from flask import Flask, request, jsonify
 from flask_cors import CORS, cross_origin
 from flask_swagger_ui import get_swaggerui_blueprint
 from flask_swagger import swagger
 from tensorflow.keras.preprocessing import image
 from werkzeug.utils import secure_filename
 
-if not os.path.exists(settings.ENCODERS_MODEL_PATH + 'encoders.pkl') or not os.path.exists(settings.ENCODERS_MODEL_PATH + 'seq_trained_model.pkl') or settings.TRAIN_MODEL == True:
-    train()
+if not os.path.exists(settings.ENCODERS_MODEL_PATH + 'encoders.pkl') or (not os.path.exists(settings.ENCODERS_MODEL_PATH + 'seq_trained_model.pkl') and not os.path.exists(settings.ENCODERS_MODEL_PATH + 'seq_dense_trained_model.pkl')) or settings.TRAIN_MODEL == True:
+  train()
 
 app = Flask(__name__, static_folder='static')
 CORS(app, resources={r"/*": {"origins": "*"}})
