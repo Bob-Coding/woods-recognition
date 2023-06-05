@@ -3,6 +3,13 @@
 ## Project Requirements
 
 - `pipenv`: Pipenv is a tool that provides all necessary means to create a virtual environment for your Python project. It automatically manages project packages through the Pipfile file as you install or uninstall packages.
+- `environment variables`: For running the service there are few configurable options. First cd into ./service and add a .env file using the following vars:
+  - `DATABASE_NAME`: Database name MongoDB (default: "woods_recognition")
+  - `COLLECTION_NAME`: Collection name MongoDB (default: "dataset_cleaned")
+  - `DATABASE_URL`: Mongo URI with db included (default: "mongodb://root:example@localhost:27017/woods_recognition?authSource=admin")
+  - `TRAIN_SEQ_DENSE_MODEL`: Set "True" or "False" for training sequential dense model at start-up (default: "False")
+  - `TRAIN_DENSE_MODEL`: Set "True" or "False" for training dense model at start-up (default: "False")
+  - `API_URL`: API URL for swagger docs (default: http://localhost:5000)
 
 ## Install Pipenv
 
