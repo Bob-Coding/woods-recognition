@@ -6,6 +6,8 @@ import csv
 from PIL import Image
 import pickle
 import numpy as np
+from database.connection import MongoDBConnection
+from bson.objectid import ObjectId
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix
@@ -15,8 +17,13 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 from tensorflow.keras.optimizers import Adam
 
+client = MongoDBConnection(settings.DATABASE_URL)
+db = client.get_database()
+collection = client.get_collection(settings.COLLECTION_NAME)
+
 # Train model
-def train():
+def train_seq_dense_model():
+    print("Training seq dense model...")
     file_names = []
     labels = []
 
@@ -26,9 +33,34 @@ def train():
             if row[0] != "_id":
                 file_names.append(row[1])
                 labels.append(row[2])
+                # create document for mongoDB
+                document = {
+                    'file': row[1],
+                    'label': row[2]
+                }
 
+                # Check if document exists
+                existing_document = collection.find_one({'file': row[1]})
+
+                if existing_document:
+                    # Update document
+                    existing_document['label'] = row[2]
+
+                    # Save document
+                    collection.update_one({'file': row[1]}, {'$set': {'label': row[2]}})
+                else:
+                    # create new document with generated ID
+                    document = {
+                    '_id': ObjectId(),
+                    'file': row[1],
+                    'label': row[2]
+                    }   
+
+                    # Insert document
+                    collection.insert_one(document)
+    client.close()
    
-    mogelijke_labels_count = len(np.unique(labels))
+    possible_labels_count = len(np.unique(labels))
     images = []
     encoded_labels = []
     label_encoder = LabelEncoder()
@@ -53,7 +85,7 @@ def train():
 
     # Save LabelEncoder, OneHotEncoder, encoded_labels 
     encoders = {'label_encoder': label_encoder, 'onehot_encoder': onehot_encoder, 'encoded_labels': encoded_labels}
-    with open(settings.ENCODERS_MODEL_PATH + 'encoders.pkl', 'wb') as f:
+    with open(settings.ENCODERS_MODEL_PATH + 'seq_dense_encoders.pkl', 'wb') as f:
         pickle.dump(encoders, f)
 
     # Split set in trainings set and test set 
@@ -83,14 +115,14 @@ def train():
         model.add(Flatten())
         model.add(Dense(128, activation='relu'))
         model.add(Dropout(best_dropout_rate))
-        model.add(Dense(mogelijke_labels_count, activation='softmax'))
+        model.add(Dense(possible_labels_count, activation='softmax'))
 
         # compile model
         optimizer = Adam(learning_rate=best_learning_rate)
         model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
 
         # Train model
-        model.fit(X_train, y_train, batch_size=32, epochs=10, validation_data=(X_val, y_val))
+        model.fit(X_train, y_train, batch_size=32, epochs=50, validation_data=(X_val, y_val))
 
         # Generate predictions for the test data
         y_pred = model.predict(X_test)

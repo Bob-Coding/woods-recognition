@@ -4,6 +4,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Dense, Conv2D, BatchNormalization, Activation, AveragePooling2D, GlobalAveragePooling2D, MaxPooling2D
 from tensorflow.keras.regularizers import l2
+from database.connection import MongoDBConnection
 import seaborn as sns
 from keras.utils import to_categorical
 from sklearn.preprocessing import LabelEncoder
@@ -15,8 +16,14 @@ import matplotlib.pyplot as plt
 import pickle
 from config import settings
 import csv
+from bson.objectid import ObjectId
 
-def train():
+client = MongoDBConnection(settings.DATABASE_URL)
+db = client.get_database()
+collection = client.get_collection(settings.COLLECTION_NAME)
+
+def train_dense_model():
+    print("Training dense model...")
     file_names = []
     labels = []
 
@@ -26,6 +33,32 @@ def train():
             if row[0] != "_id":
                 file_names.append(row[1])
                 labels.append(row[2])
+                # create document for mongoDB
+                document = {
+                    'file': row[1],
+                    'label': row[2]
+                }
+
+                # Check if document exists
+                existing_document = collection.find_one({'file': row[1]})
+
+                if existing_document:
+                    # Update document
+                    existing_document['label'] = row[2]
+
+                    # Save document
+                    collection.update_one({'file': row[1]}, {'$set': {'label': row[2]}})
+                else:
+                    # create new document with generated ID
+                    document = {
+                    '_id': ObjectId(),
+                    'file': row[1],
+                    'label': row[2]
+                    }   
+
+                    # Insert document
+                    collection.insert_one(document)
+    client.close()
 
     possible_label_count = np.unique(labels)
     images = []
@@ -114,7 +147,7 @@ def train():
     # Compile model
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     # Train model
-    model.fit(X_train, y_train, batch_size=32, epochs=1, validation_data=(X_val, y_val))
+    model.fit(X_train, y_train, batch_size=32, epochs=50, validation_data=(X_val, y_val))
 
     y_pred = model.predict(X_val)
 
@@ -141,6 +174,9 @@ def train():
     plt.title('Confusion Matrix')
     plt.savefig(cm_folder + '/densenet_confusion_matrix.png')
 
+    # save encoder
+    with open(settings.ENCODERS_MODEL_PATH + 'dense_encoder.pkl', 'wb') as file:
+        pickle.dump(label_encoder, file)
     # Save trained model
     with open(settings.ENCODERS_MODEL_PATH + 'dense_trained_model.pkl', 'wb') as file:
         pickle.dump(model, file)
