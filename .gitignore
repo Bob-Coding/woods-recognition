@@ -5,7 +5,7 @@
 service/**/__pycache__/
 service/.idea/
 service/.env
-service/data/
+service/data/images/
 service/Pipfile.lock
 
 
