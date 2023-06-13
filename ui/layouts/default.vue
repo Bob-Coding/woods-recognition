@@ -40,9 +40,14 @@ export default {
       drawer: false,
       items: [
         {
-          icon: "mdi-view-dashboard",
-          title: "dashboard",
+          icon: "mdi-chart-bar-stacked",
+          title: "Statistics",
           to: "/",
+        },
+        {
+          icon: "mdi-image-search",
+          title: "Classify image",
+          to: "/classify-image",
         },
       ],
     };
