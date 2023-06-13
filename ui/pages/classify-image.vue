@@ -140,11 +140,6 @@ export default {
       plotUrls: null,
     };
   },
-  computed: {
-    apiUrl() {
-      return process.env.API_URL;
-    },
-  },
   methods: {
     generateId() {
       return Math.random().toString(36).substr(2, 9);
@@ -172,6 +167,7 @@ export default {
       event.preventDefault();
       const formData = new FormData();
       formData.append("modelType", this.selectedModel);
+
       for (let i = 0; i < this.files.length; i++) {
         const file = this.files[i];
         formData.append("imageFiles", file);

@@ -21,13 +21,13 @@ def train_model(model):
         return
     
 def classify_image(model):
-    if model == "seq_dense_model":
+    if model == "Sequential DenseNet Model":
         with open(settings.ENCODERS_MODEL_PATH + 'seq_dense_trained_model.pkl', 'rb') as f:
             model = pickle.load(f)
         with open(settings.ENCODERS_MODEL_PATH + 'seq_dense_encoders.pkl', 'rb') as f:
             loaded_encoders = pickle.load(f)
         label_encoder = loaded_encoders['label_encoder']
-    elif model == "dense_model":
+    elif model == "DenseNet Model":
         with open(settings.ENCODERS_MODEL_PATH + 'dense_trained_model.pkl', 'rb') as f:
             model = pickle.load(f)
         with open(settings.ENCODERS_MODEL_PATH + 'dense_encoder.pkl', 'rb') as f:

@@ -1,9 +1,9 @@
-import axios from 'axios';
+import axios from "axios";
 
 const instance = axios.create({
-  baseURL: process.env.apiUrl,
+  baseURL: process.env.API_URL ?? "http://localhost:5000",
 });
 
 export default ({ app }, inject) => {
-  inject('axios', instance);
+  inject("axios", instance);
 };

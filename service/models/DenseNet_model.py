@@ -26,6 +26,17 @@ def train_dense_model():
     print("Training dense model...")
     file_names = []
     labels = []
+    label_stats = {
+        "Crack": {"correct_guesses": 0, "total_guesses": 0},
+        "Dead_Knot": {"correct_guesses": 0, "total_guesses": 0},
+        "Knot_Missing": {"correct_guesses": 0, "total_guesses": 0},
+        "Knot_With_Crack": {"correct_guesses": 0, "total_guesses": 0},
+        "Live_Knot": {"correct_guesses": 0, "total_guesses": 0},
+        "Marrow": {"correct_guesses": 0, "total_guesses": 0},
+        "Quartzity": {"correct_guesses": 0, "total_guesses": 0},
+        "Resin": {"correct_guesses": 0, "total_guesses": 0},
+        "clean": {"correct_guesses": 0, "total_guesses": 0},
+    }
 
     with open('./data/dataset_cleaned.csv', 'r') as csvfile:
         reader = csv.reader(csvfile)
@@ -147,7 +158,7 @@ def train_dense_model():
     # Compile model
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     # Train model
-    model.fit(X_train, y_train, batch_size=32, epochs=50, validation_data=(X_val, y_val))
+    model.fit(X_train, y_train, batch_size=32, epochs=30, validation_data=(X_val, y_val))
 
     y_pred = model.predict(X_val)
 
@@ -162,6 +173,22 @@ def train_dense_model():
 
     # Calculate the confusion matrix
     cm = confusion_matrix(y_test_multiclass, y_pred_labels)
+
+    # Update label_stats with correct_guesses
+    for i in range(len(y_test_multiclass)):
+        true_label = y_test_multiclass[i]
+        predicted_label = y_pred[i]
+
+        if true_label == np.argmax(predicted_label):
+            label = label_encoder.inverse_transform([np.argmax(predicted_label)])[0]
+            label_stats[label]['correct_guesses'] += 1
+
+        # Increment total_guesses for the predicted label
+        label_stats[label]['total_guesses'] += 1
+
+    # Save label_stats dictionary
+    with open(settings.ENCODERS_MODEL_PATH + 'label_stats_dense.pkl', 'wb') as f:
+        pickle.dump(label_stats, f)
 
     cm_folder = os.path.join("./app/static", "cm")
     os.makedirs(os.path.join(cm_folder), exist_ok=True)

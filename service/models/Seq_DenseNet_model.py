@@ -26,6 +26,17 @@ def train_seq_dense_model():
     print("Training seq dense model...")
     file_names = []
     labels = []
+    label_stats = {
+        "Crack": {"correct_guesses": 0, "total_guesses": 0},
+        "Dead_Knot": {"correct_guesses": 0, "total_guesses": 0},
+        "Knot_Missing": {"correct_guesses": 0, "total_guesses": 0},
+        "Knot_With_Crack": {"correct_guesses": 0, "total_guesses": 0},
+        "Live_Knot": {"correct_guesses": 0, "total_guesses": 0},
+        "Marrow": {"correct_guesses": 0, "total_guesses": 0},
+        "Quartzity": {"correct_guesses": 0, "total_guesses": 0},
+        "Resin": {"correct_guesses": 0, "total_guesses": 0},
+        "clean": {"correct_guesses": 0, "total_guesses": 0},
+    }
 
     with open(settings.DATASET_PATH, 'r') as csvfile:
         reader = csv.reader(csvfile)
@@ -112,40 +123,56 @@ def train_seq_dense_model():
         model.add(Conv2D(best_num_filters, (best_filter_size, best_filter_size), activation='relu'))
         model.add(MaxPooling2D((2, 2)))
 
-        model.add(Flatten())
-        model.add(Dense(128, activation='relu'))
-        model.add(Dropout(best_dropout_rate))
-        model.add(Dense(possible_labels_count, activation='softmax'))
+    model.add(Flatten())
+    model.add(Dense(128, activation='relu'))
+    model.add(Dropout(best_dropout_rate))
+    model.add(Dense(possible_labels_count, activation='softmax'))
 
-        # compile model
-        optimizer = Adam(learning_rate=best_learning_rate)
-        model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    # compile model
+    optimizer = Adam(learning_rate=best_learning_rate)
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
 
-        # Train model
-        model.fit(X_train, y_train, batch_size=32, epochs=50, validation_data=(X_val, y_val))
+    # Train model
+    model.fit(X_train, y_train, batch_size=32, epochs=40, validation_data=(X_val, y_val))
 
-        # Generate predictions for the test data
-        y_pred = model.predict(X_test)
-        y_pred = np.argmax(y_pred, axis=1)
+    # Generate predictions for the test data
+    y_pred = model.predict(X_test)
+    y_pred = np.argmax(y_pred, axis=1)
 
-        # Convert one-hot encoded y_test to multiclass format
-        y_test_multiclass = np.argmax(y_test, axis=1)
+    # Convert one-hot encoded y_test to multiclass format
+    y_test_multiclass = np.argmax(y_test, axis=1)
 
-        # Calculate the confusion matrix
-        cm = confusion_matrix(y_test_multiclass, y_pred)
+    # Calculate the confusion matrix
+    cm = confusion_matrix(y_test_multiclass, y_pred)
+    # Update label_stats with correct_guesses
+    for i in range(len(y_test_multiclass)):
+        true_label = y_test_multiclass[i]
+        predicted_label = y_pred[i]
 
-        cm_folder = os.path.join("./app/static", "cm")
-        os.makedirs(os.path.join(cm_folder), exist_ok=True)
+        if true_label == predicted_label:
+            label = label_encoder.inverse_transform([predicted_label])[0]
+            label_stats[label]['correct_guesses'] += 1
+
+        # Increment total_guesses for the predicted label
+        label_stats[label]['total_guesses'] += 1
+
+    # Save label_stats dictionary
+    with open(settings.ENCODERS_MODEL_PATH + 'label_stats_seq_dense.pkl', 'wb') as f:
+        pickle.dump(label_stats, f)
+
+    cm_folder = os.path.join("./app/static", "cm")
+    os.makedirs(os.path.join(cm_folder), exist_ok=True)
         
-        # Plot the confusion matrix using seaborn
-        plt.figure(figsize=(10, 8))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False)
-        plt.xlabel('Predicted labels')
-        plt.ylabel('True labels')
-        plt.title('Confusion Matrix')
-        plt.savefig(cm_folder + '/seq_confusion_matrix.png')
+    # Plot the confusion matrix using seaborn
+    plt.figure(figsize=(10, 8))
+    cmap = sns.diverging_palette(220, 20, as_cmap=True)
+    sns.heatmap(cm, annot=True, fmt='d', cmap=cmap, cbar=True, square=True)
+    plt.xlabel('Predicted labels')
+    plt.ylabel('True labels')
+    plt.title('Confusion Matrix')
+    plt.savefig(cm_folder + '/seq_confusion_matrix.png')
 
-        # Save trained model
-        with open(settings.ENCODERS_MODEL_PATH + 'seq_trained_model.pkl', 'wb') as file:
-            pickle.dump(model, file)
+    # Save trained model
+    with open(settings.ENCODERS_MODEL_PATH + 'seq_trained_model.pkl', 'wb') as file:
+        pickle.dump(model, file)
 

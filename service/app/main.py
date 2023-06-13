@@ -2,6 +2,7 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import settings
+import pickle
 from database.connection import MongoDBConnection
 from models.train import train_model, classify_image
 from flask import Flask, request, jsonify
@@ -53,8 +54,16 @@ def classify():
       200:
         description: OK
     """
-    response = classify_image('seq_dense_model')
+    model = request.form.get('modelType')
+    response = classify_image(model)
     return response
+
+@app.route('/bubble_chart', methods=['GET'])
+def get_bubble_chart_data():
+    # Open en laad de gegevens van het pkl-bestand
+    with open(settings.ENCODERS_MODEL_PATH + 'label_stats_seq_dense.pkl', 'rb') as file:
+        bubble_data = pickle.load(file)
+    return jsonify(bubble_data)
   
 @app.route('/items', methods=['POST'])
 def add_item():
