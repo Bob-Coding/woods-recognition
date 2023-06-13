@@ -60,9 +60,18 @@ def classify():
 
 @app.route('/bubble_chart', methods=['GET'])
 def get_bubble_chart_data():
-    # Open en laad de gegevens van het pkl-bestand
+    bubble_data = {}
+
+    # Load data from the first model
     with open(settings.ENCODERS_MODEL_PATH + 'label_stats_seq_dense.pkl', 'rb') as file:
-        bubble_data = pickle.load(file)
+        seq_dense_data = pickle.load(file)
+    bubble_data['seq_dense'] = seq_dense_data
+
+    # Load data from the second model
+    with open(settings.ENCODERS_MODEL_PATH + 'label_stats_dense.pkl', 'rb') as file:
+        dense_data = pickle.load(file)
+    bubble_data['dense'] = dense_data
+
     return jsonify(bubble_data)
   
 @app.route('/items', methods=['POST'])
