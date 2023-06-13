@@ -3,6 +3,13 @@
     <v-container>
       <v-card>
         <v-card-title class="title">Upload Image</v-card-title>
+        <v-select
+          class="model-select"
+          :items="items"
+          label="Model Type"
+          density="comfortable"
+          @change="onModelSelected"
+        ></v-select>
         <input
           type="file"
           ref="fileInput"
@@ -93,6 +100,10 @@
   margin: 16px 0px 16px 16px;
   margin-left: 16px;
 }
+.model-select {
+  margin-left: 16px;
+  max-width: 300px;
+}
 .title {
   font-size: 25px;
   font-weight: bold;
@@ -122,8 +133,10 @@ export default {
   name: "Dashboard",
   data() {
     return {
+      items: ["Sequential DenseNet Model", "DenseNet Model"],
       files: null,
       selectedFileNames: null,
+      selectedModel: null,
       plotUrls: null,
     };
   },
@@ -138,6 +151,10 @@ export default {
     },
     selectFile() {
       this.$refs.fileInput.click();
+    },
+    onModelSelected(event) {
+      this.selectedModel = event;
+      console.log(this.selectedModel);
     },
     onFileSelected(event) {
       this.files = [];
@@ -154,6 +171,7 @@ export default {
     async classifyImage(event) {
       event.preventDefault();
       const formData = new FormData();
+      formData.append("modelType", this.selectedModel);
       for (let i = 0; i < this.files.length; i++) {
         const file = this.files[i];
         formData.append("imageFiles", file);
