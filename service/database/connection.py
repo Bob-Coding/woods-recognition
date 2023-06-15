@@ -7,7 +7,6 @@ from pymongo import MongoClient
 class MongoDBConnection:
     def __init__(self, url):
         self.url = url
-        print(self.url)
         self.client = MongoClient(self.url)
 
     def get_collection(self, collection_name):
