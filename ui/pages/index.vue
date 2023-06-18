@@ -17,6 +17,7 @@
 .chart-container {
   width: 100%;
   height: 400px;
+  background-color: grey !important;
 }
 </style>
 
@@ -160,6 +161,11 @@ export default {
   },
   async mounted() {
     await this.getBubbleChartData();
+    // Zoek het SVG-element op basis van de klasse
+    var svgElement = document.querySelector(".main-svg");
+
+    // Wijzig de achtergrondkleur naar roze
+    svgElement.style.background = "#1E1E1E";
   },
 };
 </script>
