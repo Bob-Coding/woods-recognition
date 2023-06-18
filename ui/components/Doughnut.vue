@@ -1,7 +1,7 @@
 <template>
   <div>
     <v-card>
-      <v-card-title>Guesses Models</v-card-title>
+      <v-card-title>Data set distribution</v-card-title>
       <v-card-text>
         <canvas ref="chartCanvas"></canvas>
       </v-card-text>
@@ -26,7 +26,7 @@ export default {
     renderChart() {
       const chartData = this.data.datasets;
       new Chart(this.$refs.chartCanvas, {
-        type: "bar",
+        type: "doughnut",
         data: {
           labels: [
             "Crack",
