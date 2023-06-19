@@ -45,6 +45,11 @@ export default {
           to: "/",
         },
         {
+          icon: "mdi mdi-matrix",
+          title: "Confusion matrixes",
+          to: "/confusion-matrix",
+        },
+        {
           icon: "mdi-image-search",
           title: "Classify image",
           to: "/classify-image",

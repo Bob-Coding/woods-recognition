@@ -58,6 +58,25 @@ def classify():
     response = classify_image(model)
     return response
 
+@app.route('/confusion_matrixes', methods=["GET"])
+def get_confusion_matrixes():
+    """
+    Get the confusion matrixes of the models
+    ---
+    tags:
+    - Items
+    responses:
+      200:
+        description: OK
+    """
+    confusion_matrixes = {
+    }
+
+    confusion_matrixes['dense'] = f'{settings.API_URL}/static/cm/densenet_confusion_matrix.png'
+    confusion_matrixes['seq_dense'] = f'{settings.API_URL}/static/cm/seq_confusion_matrix.png'
+
+    return jsonify(confusion_matrixes)
+
 @app.route('/bubble_chart', methods=['GET'])
 def get_bubble_chart_data():
     bubble_data = {}

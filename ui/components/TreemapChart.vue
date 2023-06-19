@@ -41,23 +41,6 @@ export default {
         "",
       ];
 
-      // function traverse(node, parent = "") {
-      //   labels.push(node.name);
-      //   parents.push(parent);
-
-      //   if (node.children) {
-      //     node.children.forEach((child) => {
-      //       traverse(child, node.name);
-      //     });
-      //   }
-      // }
-      // traverse(this.defectData);
-
-      // const values = labels.map((label) => {
-      //   const node = this.getNodeByName(label);
-      //   return node.value || 0;
-      // });
-
       const data = [
         {
           type: "treemap",
@@ -133,10 +116,5 @@ export default {
 .chart-container {
   width: 100%;
   height: 400px;
-  background-color: black;
-}
-.main-svg {
-  background: none !important;
-  background-color: #1e1e1e !important;
 }
 </style>
